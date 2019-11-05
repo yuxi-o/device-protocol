@@ -1,0 +1,70 @@
+[Writable]
+LogLevel = 'INFO'
+
+[Service]
+Host = "device-protocol"
+Port = 49991
+ConnectRetries = 20
+Labels = []
+OpenMsg = "device protocol started"
+Timeout = 5000
+EnableAsyncReadings = true
+AsyncBufferSize = 16
+
+[Registry]
+Host = "edgex-core-consul"
+Port = 8500
+Type = "consul"
+CheckInterval = "10s"
+FailLimit = 3
+FailWaitTime = 10
+
+[Clients]
+  [Clients.Data]
+  Name = "edgex-core-data"
+  Protocol = "http"
+  Host = "edgex-core-data"
+  Port = 48080
+  Timeout = 5000
+
+  [Clients.Metadata]
+  Name = "edgex-core-metadata"
+  Protocol = "http"
+  Host = "edgex-core-metadata"
+  Port = 48081
+  Timeout = 5000
+
+  [Clients.Logging]
+  Name = "edgex-support-logging"
+  Protocol = "http"
+  Host = "edgex-support-logging"
+  Port = 48061
+
+[Device]
+  DataTransform = true
+  InitCmd = ""
+  InitCmdArgs = ""
+  MaxCmdOps = 128
+  MaxCmdValueLen = 256
+  RemoveCmd = ""
+  RemoveCmdArgs = ""
+  ProfilesDir = "./res"
+
+[Logging]
+EnableRemote = true
+File = "/edgex/logs/device-protocol.log"
+
+# Pre-define Devices
+[[DeviceList]]
+  Name = "Protocol-Device01"
+  Profile = "Protocol-Device"
+  Description = "Example of Protocol Device"
+  Labels = [ "industrial" ]
+  [DeviceList.Protocols]
+    [DeviceList.Protocols.other]
+      Address = "Protocol01"
+      Port = "300"
+  [[DeviceList.AutoEvents]]
+    Frequency = "10s"
+    OnChange = false
+    Resource = "PlcInt"

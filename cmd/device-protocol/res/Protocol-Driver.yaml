@@ -1,0 +1,54 @@
+name: "Protocol-Device"
+manufacturer: "Certus"
+model: ""
+labels:
+ - "DF1"
+description: "Example of Protocol Device"
+
+deviceResources:
+    -
+        name: "PlcInt"
+        description: "N7:100 value"
+        attributes:
+            {addr: "N7:101"}
+        properties:
+            value:
+                {type: "Int32", readWrite: "RW", defaultValue: "0"}
+            units:
+                {type: "String", readWrite: "R", defaultValue: ""}
+
+deviceCommands:
+    -
+        name: "PLCInner"
+        get:
+            - {operation: "get", object: "PlcInt"}
+        set:
+            - {operation: "set", object: "PlcInt"}
+
+
+coreCommands:
+  -
+    name: "PLCHttp"
+    get:
+        path: "/api/v1/device/{deviceId}/PlcInt"
+        responses:
+          -
+            code: "200"
+            description: ""
+            expectedValues: []
+          -
+            code: "503"
+            description: "service unavailable"
+            expectedValues: []
+    put:
+      path: "/api/v1/device/{deviceId}/PlcInt"
+      parameterNames: ["PlcInt"]
+      responses:
+      -
+        code: "200"
+        description: ""
+      -
+        code: "503"
+        description: "service unavailable"
+        expectedValues: []
+
