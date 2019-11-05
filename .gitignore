@@ -1,0 +1,4 @@
+*~
+*.log
+go.sum
+cmd/device-protocol/device-protocol
