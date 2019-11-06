@@ -16,19 +16,35 @@ deviceResources:
                 {type: "Int32", readWrite: "RW", defaultValue: "0"}
             units:
                 {type: "String", readWrite: "R", defaultValue: ""}
+    -
+        name: "PlcFloat"
+        description: "F8:10 value"
+        attributes:
+            {addr: "F8:10"}
+        properties:
+            value:
+                {type: "FLOAT32", readWrite: "RW", scale: "1", floatEncoding: "Base64", defaultValue: "0.0"}
+            units:
+                {type: "String", readWrite: "R", defaultValue: ""}
 
 deviceCommands:
     -
-        name: "PLCInner"
+        name: "PlcIntInner"
         get:
             - {operation: "get", object: "PlcInt"}
         set:
             - {operation: "set", object: "PlcInt"}
+    -
+        name: "PlcFloatInner"
+        get:
+            - {operation: "get", object: "PlcFloat"}
+        set:
+            - {operation: "set", object: "PlcFloat"}
 
 
 coreCommands:
   -
-    name: "PLCHttp"
+    name: "PlcIntHttp"
     get:
         path: "/api/v1/device/{deviceId}/PlcInt"
         responses:
@@ -43,6 +59,30 @@ coreCommands:
     put:
       path: "/api/v1/device/{deviceId}/PlcInt"
       parameterNames: ["PlcInt"]
+      responses:
+      -
+        code: "200"
+        description: ""
+      -
+        code: "503"
+        description: "service unavailable"
+        expectedValues: []
+  -
+    name: "PlcFloatHttp"
+    get:
+        path: "/api/v1/device/{deviceId}/PlcFloat"
+        responses:
+          -
+            code: "200"
+            description: ""
+            expectedValues: []
+          -
+            code: "503"
+            description: "service unavailable"
+            expectedValues: []
+    put:
+      path: "/api/v1/device/{deviceId}/PlcFloat"
+      parameterNames: ["PlcFloat"]
       responses:
       -
         code: "200"

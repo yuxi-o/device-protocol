@@ -12,7 +12,9 @@ package driver
 
 import (
 	"fmt"
+	"os/exec"
 	"time"
+	"strings"
 
 	dsModels "github.com/edgexfoundry/device-sdk-go/pkg/models"
 	"github.com/edgexfoundry/go-mod-core-contracts/clients/logger"
@@ -22,7 +24,31 @@ import (
 type ProtocolDriver struct {
 	lc           logger.LoggingClient
 	asyncCh      chan<- *dsModels.AsyncValues
-	plcValue	int32
+}
+
+// Define application
+var  df1ErrCount int32 = 0
+
+func restartDf1d(){
+	if df1ErrCount >5 {
+		stopCmd := []string{"pkill", "df1d"}
+		restartCmd := []string{"df1d"}
+
+		exec.Command(stopCmd[0], stopCmd[1]).Run()
+		exec.Command(restartCmd[0], restartCmd[1:]...).Run()
+
+		df1ErrCount = 0
+	}
+}
+
+func cmdFunc(cmd... string) (string, error) {
+//	fmt.Printf("cmd len: %d, value:%v\n", len(cmd),  cmd)
+	result, err := exec.Command(cmd[0], cmd[1:]...).Output()
+	if err != nil {
+		return strings.TrimSpace(string(result)), err 
+	}
+
+	return strings.TrimSpace(string(result)), nil
 }
 
 // Initialize performs protocol-specific initialization for the device
@@ -40,16 +66,30 @@ func (s *ProtocolDriver) HandleReadCommands(deviceName string, protocols map[str
 		err = fmt.Errorf("ProtocolDriver.HandleReadCommands; too many command requests; only one supported")
 		return
 	}
-	s.lc.Debug(fmt.Sprintf("ProtocolDriver.HandleReadCommands: protocols: %v resource: %v attributes: %v", protocols, reqs[0].DeviceResourceName, reqs[0].Attributes))
 
+	addr, ok := reqs[0].Attributes["addr"]
+	if ok==false {
+		err = fmt.Errorf("ProtocolDriver.HandleReadCommands; DeviceResource without addr attribution")
+		return
+	} 
+	rwCmd := []string{"df1c", "127.0.0.1", "N7:1"}
 	res = make([]*dsModels.CommandValue, 1)
 	now := time.Now().UnixNano() / int64(time.Millisecond)
-	if reqs[0].DeviceResourceName == "PlcInt" {
-		addr := reqs[0].Attributes["addr"]
-		s.lc.Debug(fmt.Sprintf("SimpleDriver.HandleReadCommands: %v", addr))
-		cvi, _ := dsModels.NewInt32Value(reqs[0].DeviceResourceName, now, s.plcValue)
-		res[0] = cvi
+	rwCmd[2] = addr
+
+	s.lc.Debug(fmt.Sprintf("ProtocolDriver.HandleReadCommands: protocols: %v, resource: %v, param: %v", protocols, reqs[0].DeviceResourceName, rwCmd))
+
+	str, err := cmdFunc(rwCmd...)
+	if err != nil {
+		df1ErrCount++
+		restartDf1d()
+		err = fmt.Errorf("ProtocolDriver.HandleReadCommands: [%v]:%v, failed:%d", err, string(str), df1ErrCount)
+		s.lc.Debug(err.Error())
+		return
 	}
+
+	cvi, err := dsModels.NewCommandValue(reqs[0].DeviceResourceName, now, str, reqs[0].Type)
+	res[0] = cvi
 
 	return
 }
@@ -70,16 +110,24 @@ func (s *ProtocolDriver) HandleWriteCommands(deviceName string, protocols map[st
 		return err
 	}
 
-	s.lc.Debug(fmt.Sprintf("ProtocolDriver.HandleWriteCommands: protocols: %v, resource: %v, parameters: %v", protocols, reqs[0].DeviceResourceName, params))
 	var err error
-	if reqs[0].DeviceResourceName == "PlcInt" {
-		addr := reqs[0].Attributes["addr"]
-		if s.plcValue, err = params[0].Int32Value(); err != nil {
-			err := fmt.Errorf("SimpleDriver.HandleWriteCommands; the data type of parameter should be Int32, parameter: %s", params[0].String())
-			return err
+	rwCmd := []string{"df1c", "127.0.0.1", "N7:1"}
+	addr, ok := reqs[0].Attributes["addr"]
+	if ok == false {
+		err = fmt.Errorf("ProtocolDriver.HandleReadCommands; DeviceResource without addr attribution")
+		return err
+	} 
+	rwCmd[2] = addr + "=" + params[0].ValueToString()
 
-		}
-		s.lc.Debug(fmt.Sprintf("SimpleDriver.HandleWriteCommands: %v=%v, Attributes: %v", addr, s.plcValue, reqs[0].Attributes["addr"]))
+	s.lc.Debug(fmt.Sprintf("ProtocolDriver.HandleReadCommands: protocols: %v, resource: %v, param: %v, write param: %v", protocols, reqs[0].DeviceResourceName, params, rwCmd))
+
+	str, err := cmdFunc(rwCmd...)
+	if err != nil {
+		df1ErrCount++
+		restartDf1d()
+		err = fmt.Errorf("ProtocolDriver.HandleReadCommands: [%v]:%v, failed:%d", err, string(str), df1ErrCount)
+		s.lc.Debug(err.Error())
+		return err
 	}
 
 	return nil
